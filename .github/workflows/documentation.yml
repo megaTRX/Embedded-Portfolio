@@ -1,0 +1,76 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'inc/**'
+
+jobs:
+  # Doxygen 문서 생성 (향후 구현)
+  generate-docs:
+    name: Generate API Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Doxygen
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y doxygen graphviz
+        
+    - name: Check for Doxyfile
+      run: |
+        if [ -f Doxyfile ]; then
+          echo "Doxyfile found, generating documentation..."
+          doxygen Doxyfile
+        else
+          echo "Doxyfile not found yet. Will be added in Phase 1."
+        fi
+      continue-on-error: true
+        
+    - name: Upload documentation
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-documentation
+        path: docs/api/
+      continue-on-error: true
+        
+  # 문서 링크 확인
+  check-links:
+    name: Check Documentation Links
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check internal links
+      run: |
+        echo "Checking internal documentation links..."
+        # 간단한 링크 체크 (향후 개선)
+        grep -r "\[.*\](.*\.md)" docs/ || echo "No markdown links found"
+        
+  # 문서 통계
+  docs-stats:
+    name: Documentation Statistics
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Count documentation
+      run: |
+        echo "📊 Documentation Statistics"
+        echo "=========================="
+        echo "Total markdown files: $(find docs -name '*.md' | wc -l)"
+        echo "Total lines: $(find docs -name '*.md' -exec cat {} \; | wc -l)"
+        echo ""
+        echo "Files:"
+        find docs -name '*.md' -exec basename {} \;

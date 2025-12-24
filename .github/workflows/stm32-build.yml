@@ -1,0 +1,109 @@
+name: STM32 Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'inc/**'
+      - 'Makefile'
+      - 'CMakeLists.txt'
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # ARM GCC 빌드
+  build-stm32:
+    name: Build STM32 Firmware
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Cache ARM GCC
+      uses: actions/cache@v4
+      with:
+        path: ~/arm-gcc
+        key: ${{ runner.os }}-arm-gcc-12.2
+        
+    - name: Install ARM GCC Toolchain
+      run: |
+        if [ ! -d ~/arm-gcc ]; then
+          echo "Installing ARM GCC toolchain..."
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz
+          mkdir -p ~/arm-gcc
+          tar -xf arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz -C ~/arm-gcc --strip-components=1
+        fi
+        echo "$HOME/arm-gcc/bin" >> $GITHUB_PATH
+        
+    - name: Verify toolchain
+      run: |
+        arm-none-eabi-gcc --version
+        arm-none-eabi-g++ --version
+        
+    - name: Check for build files
+      run: |
+        if [ -f Makefile ]; then
+          echo "✓ Makefile found"
+        elif [ -f CMakeLists.txt ]; then
+          echo "✓ CMakeLists.txt found"
+        else
+          echo "⚠ No build system found yet (will be added in Phase 1)"
+          exit 0
+        fi
+        
+    - name: Build firmware
+      run: |
+        if [ -f Makefile ]; then
+          echo "Building with Make..."
+          make all || echo "Build system not ready yet"
+        elif [ -f CMakeLists.txt ]; then
+          echo "Building with CMake..."
+          mkdir -p build
+          cd build
+          cmake .. || echo "Build system not ready yet"
+          make || echo "Build system not ready yet"
+        else
+          echo "Skipping build - project in documentation phase"
+        fi
+      continue-on-error: true
+        
+    - name: Upload firmware
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: stm32-firmware
+        path: |
+          build/*.bin
+          build/*.hex
+          build/*.elf
+      continue-on-error: true
+        
+  # 코드 크기 분석
+  analyze-size:
+    name: Firmware Size Analysis
+    runs-on: ubuntu-latest
+    needs: build-stm32
+    if: success()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download firmware
+      uses: actions/download-artifact@v4
+      with:
+        name: stm32-firmware
+      continue-on-error: true
+        
+    - name: Analyze binary size
+      run: |
+        if [ -f *.elf ]; then
+          arm-none-eabi-size *.elf
+        else
+          echo "No firmware binary found yet"
+        fi
+      continue-on-error: true

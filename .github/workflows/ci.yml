@@ -1,0 +1,69 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # 문서 검증
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check markdown files
+      run: |
+        echo "Checking markdown files..."
+        find docs -name "*.md" -type f
+        
+    - name: Markdown lint
+      uses: DavidAnson/markdownlint-cli2-action@v14
+      with:
+        globs: 'docs/**/*.md'
+      continue-on-error: true
+        
+  # C/C++ 코드 검증 (향후 구현)
+  code-check:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup ARM GCC
+      run: |
+        echo "ARM GCC toolchain setup will be added when code is implemented"
+        
+    - name: Check project structure
+      run: |
+        echo "Checking project structure..."
+        ls -la
+        
+  # 빌드 준비 상태 확인
+  build-ready:
+    name: Build Readiness Check
+    runs-on: ubuntu-latest
+    needs: [docs-check, code-check]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Verify documentation
+      run: |
+        echo "Verifying required documentation..."
+        test -f docs/README.md && echo "✓ README.md exists"
+        test -f docs/PRD.md && echo "✓ PRD.md exists"
+        test -f docs/TechStack.md && echo "✓ TechStack.md exists"
+        test -f docs/task.md && echo "✓ task.md exists"
+        
+    - name: Project status
+      run: |
+        echo "Project is in documentation phase"
+        echo "Build system will be added in Phase 1"
